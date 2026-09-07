@@ -1,7 +1,7 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
-   basePath: '/aluminium-skirting-systems',
+   basePath: '',
   trailingSlash: true,
   /* config options here */
   typescript: {

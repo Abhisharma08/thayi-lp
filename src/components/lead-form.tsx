@@ -8,260 +8,259 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
-import { submitStep1, submitStep2 } from "@/app/actions";
-import { Loader2 } from "lucide-react";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
+import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
+import { submitLead } from "@/app/actions";
 
 const formSchema = z.object({
-    name: z.string().min(2, {
-        message: "Name must be at least 2 characters.",
+  name: z.string().min(2, {
+    message: "Please enter your full name.",
+  }),
+
+  email: z.string().email({
+    message: "Please enter a valid email address.",
+  }),
+
+  phone: z
+    .string()
+    .min(10, {
+      message: "Please enter a valid phone number.",
+    })
+    .max(15, {
+      message: "Please enter a valid phone number.",
     }),
-    email: z.string().email({
-        message: "Please enter a valid email address.",
-    }),
-    phone: z
-        .string()
-        .regex(/^[0-9]{10}$/, {
-            message: "Phone number must be exactly 10 digits.",
-        }),
-    requirement: z.string({
-        required_error: "Please select a requirement.",
-    }),
-    designation: z.string().min(2, {
-        message: "Designation is required.",
-    }),
-    location: z.string().min(2, {
-        message: "Location is required.",
-    }),
-    lead_source: z.string(),
+
+  company: z.string().min(2, {
+    message: "Please enter your company name.",
+  }),
+
+  lead_source: z.string(),
 });
 
 export default function LeadForm() {
-    const [step, setStep] = useState(1);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const router = useRouter();
-    const { toast } = useToast();
-    const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
-        defaultValues: {
-            name: "",
-            email: "",
-            phone: "",
-            requirement: undefined,
-            designation: "",
-            location: "",
-            lead_source: "Aluminium Skirting System",
-        },
-    });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-    async function handleNext() {
-        const isStep1Valid = await form.trigger(["name", "email", "phone"]);
-        if (!isStep1Valid) return;
+  const router = useRouter();
+  const { toast } = useToast();
 
-        setIsSubmitting(true);
-        const step1Data = form.getValues();
-        const result = await submitStep1({
-            name: step1Data.name,
-            email: step1Data.email,
-            phone: step1Data.phone,
-            lead_source: step1Data.lead_source,
-        });
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
 
-        setIsSubmitting(false);
+    defaultValues: {
+      name: "",
+      email: "",
+      phone: "",
+      company: "",
+      lead_source: "Thayi Doors Website",
+    },
+  });
 
-        if (result.success) {
-            // ✅ Fire Google Ads conversion as soon as Step 1 is completed
-            if (typeof window !== "undefined" && typeof window.gtag === "function") {
-                window.gtag("event", "conversion", {
-                    send_to: "AW-17338354366/8sWpCITnsfEaEL6VyctA",
-                });
-            }
+  async function onSubmit(
+    values: z.infer<typeof formSchema>
+  ) {
+    setIsSubmitting(true);
 
-            setStep(2);
-        } else {
-            toast({
-                title: "Submission Failed",
-                description: result.message || "Could not save your details. Please try again.",
-                variant: "destructive",
-            });
+    try {
+      const result = await submitLead({
+        name: values.name,
+        email: values.email,
+        phone: values.phone,
+        company: values.company,
+        lead_source: values.lead_source,
+      });
+
+      if (result.success) {
+        /*
+         * Google Ads conversion tracking
+         */
+        if (
+          typeof window !== "undefined" &&
+          typeof window.gtag === "function"
+        ) {
+          window.gtag("event", "conversion", {
+            send_to: "AW-17338354366/8sWpCITnsfEaEL6VyctA",
+          });
         }
-    }
 
-    async function onSubmit(values: z.infer<typeof formSchema>) {
-        setIsSubmitting(true);
-        const result = await submitStep2({
-            email: values.email,
-            requirement: values.requirement,
-            designation: values.designation,
-            location: values.location,
+        router.push("/thank-you?success=true");
+      } else {
+        toast({
+          title: "Submission Failed",
+          description:
+            result.message ||
+            "Could not submit your details. Please try again.",
+          variant: "destructive",
         });
+      }
+    } catch (error) {
+      console.error("Form submission error:", error);
 
-        setIsSubmitting(false);
-
-        if (result.success) {
-            router.push('/thank-you?success=true');
-        } else {
-            toast({
-                title: "Submission Failed",
-                description: result.message || "Could not save your project details. Please try again.",
-                variant: "destructive",
-            });
-        }
+      toast({
+        title: "Something went wrong",
+        description:
+          "Unable to submit your details. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
+  }
 
-    return (
-        <Card id="lead-form" className="scroll-mt-24 bg-background/80 backdrop-blur-sm border-border/50">
-            <CardHeader>
-                <CardTitle className="font-body text-2xl text-primary">Get a Free Quote</CardTitle>
-                <CardDescription>
-                    {step === 1 ? "Step 1 of 2: Your details" : "Step 2 of 2: Project details"}
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        {step === 1 && (
-                            <>
-                                <input type="hidden" {...form.register("lead_source")} />
-                                <FormField
-                                    control={form.control}
-                                    name="name"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Full Name</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="Your Name" {...field} disabled={isSubmitting} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="email"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Email Address</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="you@example.com" {...field} disabled={isSubmitting} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="phone"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Phone Number</FormLabel>
-                                            <FormControl>
-                                                <Input
-                                                    type="tel"
-                                                    inputMode="numeric"
-                                                    pattern="\d{10}"
-                                                    maxLength={10}
-                                                    placeholder="e.g. 9876543210"
-                                                    {...field}
-                                                    disabled={isSubmitting}
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </>
-                        )}
+  return (
+    <Card
+      id="lead-form"
+      className="scroll-mt-24 border-border/50 bg-background/95 shadow-xl backdrop-blur-sm"
+    >
+      <CardHeader className="pb-6">
+        <CardTitle className="font-heading text-2xl font-medium text-primary sm:text-3xl">
+          Get a Free Consultation
+        </CardTitle>
 
-                        {step === 2 && (
-                            <>
-                                <FormField
-                                    control={form.control}
-                                    name="requirement"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Requirement for?</FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}>
-                                                <FormControl>
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Select requirement type" />
-                                                    </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                    <SelectItem value="Office">Office</SelectItem>
-                                                    <SelectItem value="Home">Home</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="designation"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Designation</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="e.g. Architect, Project Manager" {...field} disabled={isSubmitting} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="location"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Location</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="e.g. New Delhi" {...field} disabled={isSubmitting} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </>
-                        )}
+        <CardDescription className="mt-3 text-sm leading-relaxed text-muted-foreground">
+          Send us your door schedule — we will match designs to every
+          opening and quote.
+        </CardDescription>
+      </CardHeader>
 
-                        <div className="flex gap-2 justify-end pt-2">
-                            {step === 2 && (
-                                <Button type="button" variant="ghost" onClick={() => setStep(1)} disabled={isSubmitting}>
-                                    Back
-                                </Button>
-                            )}
-                            {step === 1 ? (
-                                <Button type="button" onClick={handleNext} className="w-full" disabled={isSubmitting}>
-                                    {isSubmitting && <Loader2 className="animate-spin mr-2" />}
-                                    Next
-                                </Button>
-                            ) : (
-                                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                                    {isSubmitting && <Loader2 className="animate-spin mr-2" />}
-                                    Request Quote
-                                </Button>
-                            )}
-                        </div>
-                    </form>
-                </Form>
-            </CardContent>
-        </Card>
-    );
+      <CardContent>
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-5"
+          >
+            {/* Hidden Lead Source */}
+            <input
+              type="hidden"
+              {...form.register("lead_source")}
+            />
+
+            {/* Your Name */}
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Your Name</FormLabel>
+
+                  <FormControl>
+                    <Input
+                      placeholder="Enter your name"
+                      {...field}
+                      disabled={isSubmitting}
+                    />
+                  </FormControl>
+
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Email Address */}
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email Address</FormLabel>
+
+                  <FormControl>
+                    <Input
+                      type="email"
+                      placeholder="you@example.com"
+                      {...field}
+                      disabled={isSubmitting}
+                    />
+                  </FormControl>
+
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Phone Number */}
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Phone Number</FormLabel>
+
+                  <FormControl>
+                    <Input
+                      type="tel"
+                      inputMode="tel"
+                      placeholder="Enter your phone number"
+                      {...field}
+                      disabled={isSubmitting}
+                    />
+                  </FormControl>
+
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Company Name */}
+            <FormField
+              control={form.control}
+              name="company"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Company Name</FormLabel>
+
+                  <FormControl>
+                    <Input
+                      placeholder="Enter your company name"
+                      {...field}
+                      disabled={isSubmitting}
+                    />
+                  </FormControl>
+
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Submit Button */}
+            <div className="pt-2">
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    Get a Free Quote
+                    <span className="ml-2">→</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
+  );
 }

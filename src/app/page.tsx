@@ -3,10 +3,17 @@ import HeroSection from '@/components/hero-section';
 import Footer from '@/components/footer';
 import AnimatedSection from '@/components/animated-section';
 import StickyEnquireButton from '@/components/sticky-enquire-button';
-import KeyBenefitsSection from '@/components/key-benefits-section';
-import ProductTypesSection from '@/components/product-types-section';
-import WhyChooseUsSection from '@/components/why-choose-us-section';
+import ValueProposition from '@/components/value-proposition';
+import ProductTypesSection from '@/components/problem';
+import Differentiators from '@/components/differentiators';
 import FaqSection from '@/components/faq-section';
+import ProcessFlowSection from '@/components/process-flow-section';
+import ApplicationsSection from '@/components/applications-section';
+import WhyBuyersChooseUsSection from '@/components/why-buyers-choose-us-section';
+import BuiltForProjectSection from '@/components/built-for-project-section';
+import ClosingCtaSection from '@/components/closing-cta-section';
+import DesignIndexSection from "@/components/design-index-section";
+import Problem from '@/components/problem';
 
 export default function Home() {
   return (
@@ -14,18 +21,43 @@ export default function Home() {
       <Header />
       <main className="flex-grow">
         <HeroSection />
+
         <AnimatedSection>
-          <KeyBenefitsSection />
+          <ValueProposition />
         </AnimatedSection>
+
         <AnimatedSection>
-          <ProductTypesSection />
+          <Problem />
         </AnimatedSection>
+
         <AnimatedSection>
-          <WhyChooseUsSection />
+          <Differentiators />
         </AnimatedSection>
+
         <AnimatedSection>
-          <FaqSection />
+          <ProcessFlowSection />
         </AnimatedSection>
+
+        <AnimatedSection>
+          <ApplicationsSection />
+        </AnimatedSection>
+
+        <AnimatedSection>
+          <WhyBuyersChooseUsSection />
+        </AnimatedSection>
+
+        <AnimatedSection>
+          <BuiltForProjectSection />
+        </AnimatedSection>
+
+        <AnimatedSection>
+          <ClosingCtaSection />
+        </AnimatedSection>
+        
+        {/* <AnimatedSection>
+          <DesignIndexSection />
+        </AnimatedSection> */}
+
       </main>
       <Footer />
       <StickyEnquireButton />

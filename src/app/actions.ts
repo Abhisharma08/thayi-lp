@@ -1,150 +1,214 @@
-'use server';
+"use server";
 
-import { z } from 'zod';
+import { z } from "zod";
 
-// Define schemas for each step
-const step1Schema = z.object({
-  name: z.string(),
+const leadSchema = z.object({
+  name: z.string().min(2),
   email: z.string().email(),
-  phone: z.string(),
+  phone: z.string().min(10),
+  company: z.string().min(2),
   lead_source: z.string(),
 });
 
-const step2Schema = z.object({
-  email: z.string().email(), // Email is needed to find and update the contact
-  requirement: z.string(),
-  designation: z.string(),
-  location: z.string(),
-});
+const HUBSPOT_API_KEY =
+  process.env.HUBSPOT_API_KEY || "YOUR_HUBSPOT_API_KEY";
 
-const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY || 'YOUR_HUBSPOT_API_KEY';
+async function createOrUpdateHubspotContact(
+  properties: Record<string, string>
+) {
+  if (HUBSPOT_API_KEY === "YOUR_HUBSPOT_API_KEY") {
+    console.warn(
+      "HubSpot API Key is not set. Skipping contact submission."
+    );
 
-// Function to create a new contact
-async function createHubspotContact(properties: { property: string; value: any }[]) {
-  if (HUBSPOT_API_KEY === 'YOUR_HUBSPOT_API_KEY') {
-    console.warn("HubSpot API Key is not set. Skipping contact creation.");
-    return { success: true, message: "Contact creation skipped (API key not set)." };
+    return {
+      success: true,
+      message: "Contact submission skipped because API key is not set.",
+    };
   }
-
-  const hubspotApiUrl = 'https://api.hubapi.com/crm/v3/objects/contacts';
 
   try {
-    const response = await fetch(hubspotApiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${HUBSPOT_API_KEY}`,
-      },
-      body: JSON.stringify({ properties: Object.fromEntries(properties.map(p => [p.property, p.value])) }),
-    });
+    /*
+     * Search for an existing contact using email
+     */
+    const searchResponse = await fetch(
+      "https://api.hubapi.com/crm/v3/objects/contacts/search",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${HUBSPOT_API_KEY}`,
+        },
+        body: JSON.stringify({
+          filterGroups: [
+            {
+              filters: [
+                {
+                  propertyName: "email",
+                  operator: "EQ",
+                  value: properties.email,
+                },
+              ],
+            },
+          ],
+        }),
+      }
+    );
 
-    if (response.ok) {
-        const data = await response.json();
-        return { success: true, message: 'Contact created successfully.', data };
-    } else {
-        const errorBody = await response.json();
-        console.error('HubSpot API Error (Create):', errorBody);
-        // Handle cases where contact already exists
-        if (errorBody.category === 'CONFLICT') {
-            return { success: true, message: 'Contact already exists, will be updated.' };
-        }
-        return { success: false, message: 'Failed to create contact in HubSpot.' };
+    if (!searchResponse.ok) {
+      const errorBody = await searchResponse.json();
+
+      console.error(
+        "HubSpot API Error (Search):",
+        errorBody
+      );
+
+      return {
+        success: false,
+        message: "Failed to search for contact in HubSpot.",
+      };
     }
+
+    const searchData = await searchResponse.json();
+
+    /*
+     * If the contact already exists, update it
+     */
+    if (
+      searchData.results &&
+      searchData.results.length > 0
+    ) {
+      const contactId = searchData.results[0].id;
+
+      const updateResponse = await fetch(
+        `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${HUBSPOT_API_KEY}`,
+          },
+          body: JSON.stringify({
+            properties,
+          }),
+        }
+      );
+
+      if (!updateResponse.ok) {
+        const errorBody = await updateResponse.json();
+
+        console.error(
+          "HubSpot API Error (Update):",
+          errorBody
+        );
+
+        return {
+          success: false,
+          message: "Failed to update contact in HubSpot.",
+        };
+      }
+
+      return {
+        success: true,
+        message: "Contact updated successfully.",
+      };
+    }
+
+    /*
+     * If no contact exists, create a new one
+     */
+    const createResponse = await fetch(
+      "https://api.hubapi.com/crm/v3/objects/contacts",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${HUBSPOT_API_KEY}`,
+        },
+        body: JSON.stringify({
+          properties,
+        }),
+      }
+    );
+
+    if (!createResponse.ok) {
+      const errorBody = await createResponse.json();
+
+      console.error(
+        "HubSpot API Error (Create):",
+        errorBody
+      );
+
+      return {
+        success: false,
+        message: "Failed to create contact in HubSpot.",
+      };
+    }
+
+    return {
+      success: true,
+      message: "Contact created successfully.",
+    };
   } catch (error) {
-    console.error('Error creating HubSpot contact:', error);
-    return { success: false, message: 'An unexpected error occurred during contact creation.' };
+    console.error(
+      "HubSpot contact submission error:",
+      error
+    );
+
+    return {
+      success: false,
+      message:
+        "An unexpected error occurred while submitting the form.",
+    };
   }
 }
 
-// Function to update an existing contact by email
-async function updateHubspotContact(email: string, properties: { property: string; value: any }[]) {
-    if (HUBSPOT_API_KEY === 'YOUR_HUBSPOT_API_KEY') {
-        console.warn("HubSpot API Key is not set. Skipping contact update.");
-        return { success: true, message: "Contact update skipped (API key not set)." };
-    }
+export async function submitLead(
+  data: z.infer<typeof leadSchema>
+) {
+  const validatedData = leadSchema.safeParse(data);
 
-    // The API does not have a direct update-by-email endpoint.
-    // The create endpoint will merge with an existing contact if the email matches.
-    // This provides an "upsert" functionality.
-    const hubspotApiUrl = 'https://api.hubapi.com/crm/v3/objects/contacts';
-    
-    const upsertPayload = {
-        properties: Object.fromEntries(properties.map(p => [p.property, p.value]))
+  if (!validatedData.success) {
+    return {
+      success: false,
+      message: "Invalid form data.",
     };
+  }
 
-    try {
-        // First try to find the contact to get its ID. This is more robust.
-        const searchUrl = `https://api.hubapi.com/crm/v3/objects/contacts/search`;
-        const searchResponse = await fetch(searchUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${HUBSPOT_API_KEY}`,
-            },
-            body: JSON.stringify({
-                filterGroups: [{
-                    filters: [{
-                        propertyName: 'email',
-                        operator: 'EQ',
-                        value: email
-                    }]
-                }]
-            })
-        });
+  const {
+    name,
+    email,
+    phone,
+    company,
+    lead_source,
+  } = validatedData.data;
 
-        if (!searchResponse.ok) throw new Error('Failed to search for contact');
+  /*
+   * Split full name into first name and last name
+   */
+  const [firstName, ...lastNameParts] =
+    name.trim().split(/\s+/);
 
-        const searchData = await searchResponse.json();
-        
-        if (searchData.results && searchData.results.length > 0) {
-            const contactId = searchData.results[0].id;
-            const updateUrl = `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`;
-            const updateResponse = await fetch(updateUrl, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${HUBSPOT_API_KEY}`,
-                },
-                body: JSON.stringify(upsertPayload),
-            });
-            if (updateResponse.ok) {
-                 return { success: true, message: 'Contact updated successfully.' };
-            } else {
-                const errorBody = await updateResponse.json();
-                console.error('HubSpot API Error (Update):', errorBody);
-                return { success: false, message: 'Failed to update contact in HubSpot.' };
-            }
-        } else {
-            // This case should ideally not be hit if step 1 was successful.
-            return createHubspotContact([...properties, {property: 'email', value: email}]);
-        }
+  const lastName = lastNameParts.join(" ");
 
-    } catch (error) {
-        console.error('Error updating HubSpot contact:', error);
-        return { success: false, message: 'An unexpected error occurred during contact update.' };
-    }
-}
+  const properties = {
+    firstname: firstName,
+    lastname: lastName,
+    email,
+    phone,
 
+    /*
+     * HubSpot company field
+     */
+    company,
 
-export async function submitStep1(data: z.infer<typeof step1Schema>) {
-  const [firstName, ...lastNameParts] = data.name.split(' ');
-  const lastName = lastNameParts.join(' ');
-  
-  const properties = [
-    { property: 'firstname', value: firstName },
-    { property: 'lastname', value: lastName || '' },
-    { property: 'email', value: data.email },
-    { property: 'phone', value: data.phone },
-    { property: 'lead_source', value: "Skirting Systems Landing Page" },
-  ];
-  return await createHubspotContact(properties);
-}
+    /*
+     * Your custom HubSpot property
+     */
+    lead_source,
+  };
 
-export async function submitStep2(data: z.infer<typeof step2Schema>) {
-  const properties = [
-    { property: 'requirement_for', value: data.requirement },
-    { property: 'jobtitle', value: data.designation },
-    { property: 'city', value: data.location },
-  ];
-  return await updateHubspotContact(data.email, properties);
+  return await createOrUpdateHubspotContact(
+    properties
+  );
 }

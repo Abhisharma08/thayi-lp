@@ -5,7 +5,7 @@ export default function Logo() {
     <a href="#" className="flex items-center justify-center">
       <Image
         src="https://res.cloudinary.com/ddqqlfsjp/image/upload/v1752230081/Alu_Empire_Logo-removebg-preview_nrlo91.png"
-        alt="AluEmpire Logo"
+        alt=""
         width={225}
         height={50}
         priority

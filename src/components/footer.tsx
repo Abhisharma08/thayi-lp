@@ -19,7 +19,7 @@ export default function Footer() {
             ))}
         </nav>
         <p className="text-sm text-muted-foreground">
-            © {currentYear} AluEmpire Office Solutions. All rights reserved.
+            © {currentYear} Thayi All rights reserved.
         </p>
       </div>
     </footer>
