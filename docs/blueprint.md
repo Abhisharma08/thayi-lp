@@ -118,8 +118,6 @@ items are visible implementation inconsistencies to resolve before release:
 
 - The site logo is a placeholder Cloudinary asset, while the page copy is for
   Thayi Doors.
-- The root metadata and hero background-image alt text still refer to
-  aluminium skirting rather than Thayi doors.
 - Header links target `#solutions`, `#products`, `#why-us` and `#faq`, but
   those IDs are not present in the current rendered page. The footer labels
   are not links.

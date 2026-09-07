@@ -7,9 +7,9 @@ import { Analytics } from '@vercel/analytics/react';
 import { Poppins } from 'next/font/google';
 
 export const metadata: Metadata = {
-  title: 'AluEmpire | Aluminium Skirting Systems for Modern Spaces',
+  title: 'Thayi Doors | Premium Factory-Finished Doors in Bengaluru',
   description:
-    'Discover a smarter, stronger, and more sustainable way to style your home or office with Alu Empire’s high-performance Aluminium Skirting Systems for Modern Spaces. Designed for durability, comfort, and modern aesthetics — we bring you lasting quality with minimal upkeep.',
+    'Premium factory-finished door systems by Fitoutz Group, Bengaluru. Explore 44 engineered designs across solid wood entrances and modern interior doors.',
 };
 
 const GA_ID = 'AW-17338354366';
